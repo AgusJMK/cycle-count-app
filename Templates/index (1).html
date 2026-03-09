@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="mb-4">📊 Dashboard Cycle Count</h2>
+        <p class="text-muted">Selamat datang, <strong>{{ user }}</strong></p>
+        {% if active_cycle %}
+        <p class="text-success">Active Cycle: {{ active_cycle.cycle_name }} ({{ active_cycle.total_stock }} items)</p>
+        {% else %}
+        <p class="text-warning">Belum ada active cycle. Silakan <a href="/upload">upload stock</a> terlebih dahulu.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% if active_cycle %}
+<!-- Stats Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="stat-card" style="background: #10b981; color: white;">
+            <div class="stat-value text-white">{{ mismatch_count }}</div>
+            <div class="stat-label text-white">LOKASI BERBEDA</div>
+            <small class="text-white">Barcode ditemukan tapi lokasi tidak sesuai</small>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card" style="background: #ef4444; color: white;">
+            <div class="stat-value text-white">{{ extra_count }}</div>
+            <div class="stat-label text-white">EXTRA ITEMS</div>
+            <small class="text-white">Barcode tidak ada di database</small>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card" style="background: #f59e0b; color: white;">
+            <div class="stat-value text-white">{{ missing_count }}</div>
+            <div class="stat-label text-white">MISSING ITEMS</div>
+            <small class="text-white">Ada di database tapi belum discan</small>
+        </div>
+    </div>
+</div>
+
+<!-- Mismatch Items List -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header" style="background: #10b981; color: white;">⚠️ LOKASI BERBEDA ({{ mismatch_count }})</div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                {% if mismatch_items %}
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>Barcode</th>
+                            <th>Product</th>
+                            <th>Lokasi Discan</th>
+                            <th>Lokasi Seharusnya</th>
+                            <th>Scan Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in mismatch_items %}
+                        <tr>
+                            <td><code>{{ item.lot_number }}</code></td>
+                            <td>{{ item.product_name }}</td>
+                            <td class="text-danger">
+                                {% if 'PRGS ' in item.location_scan %}
+                                    {{ item.location_scan.split('PRGS ')[-1] }}
+                                {% else %}
+                                    {{ item.location_scan }}
+                                {% endif %}
+                            </td>
+                            <td class="text-success">
+                                {% if 'PRGS ' in item.system_location %}
+                                    {{ item.system_location.split('PRGS ')[-1] }}
+                                {% else %}
+                                    {{ item.system_location }}
+                                {% endif %}
+                            </td>
+                            <td>{{ item.scan_time }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted text-center py-3">Tidak ada item dengan lokasi berbeda</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Extra Items List -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-danger text-white">🚨 EXTRA ITEMS ({{ extra_count }})</div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                {% if extra_items %}
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>Barcode</th>
+                            <th>Scan Time</th>
+                            <th>Location Scan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in extra_items %}
+                        <tr>
+                            <td><code>{{ item.lot_number }}</code></td>
+                            <td>{{ item.scan_time }}</td>
+                            <td>
+                                {% if 'PRGS ' in item.location_scan %}
+                                    {{ item.location_scan.split('PRGS ')[-1] }}
+                                {% else %}
+                                    {{ item.location_scan }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted text-center py-3">Tidak ada extra items</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Missing Items List -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-warning">⚠️ MISSING ITEMS ({{ missing_count }})</div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                {% if missing_items %}
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>Lot Number</th>
+                            <th>Product</th>
+                            <th>Location</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in missing_items %}
+                        <tr>
+                            <td><code>{{ item.lot_number }}</code></td>
+                            <td>{{ item.product_name }}</td>
+                            <td>
+                                {% if 'PRGS ' in item.location %}
+                                    {{ item.location.split('PRGS ')[-1] }}
+                                {% else %}
+                                    {{ item.location }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted text-center py-3">Tidak ada missing items</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

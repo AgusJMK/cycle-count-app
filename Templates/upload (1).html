@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4">📤 Upload Stock Data</h2>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <!-- Upload Card -->
+        <div class="card">
+            <div class="card-header">Upload File Excel</div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    <div class="mb-4">
+                        <label class="form-label">Cycle Name</label>
+                        <input type="text" class="form-control" name="cycle_name" 
+                               value="Cycle Count {{ now.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">File Excel</label>
+                        <input type="file" class="form-control" name="file" accept=".xlsx,.xls" required>
+                        <div class="form-text">Kolom: Lot/Serial Number, Product/Name, Location</div>
+                    </div>
+                    {% if error %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                    {% endif %}
+                    <button type="submit" class="btn btn-primary w-100 p-3">🚀 Upload & Proses</button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Reset Database Card -->
+        <div class="card mt-4 border-danger">
+            <div class="card-header bg-danger text-white">⚠️ Reset Database</div>
+            <div class="card-body">
+                <p class="text-danger">
+                    <strong>Perhatian!</strong> Tombol ini akan menghapus SEMUA data:
+                </p>
+                <ul class="text-danger">
+                    <li>Semua cycle sessions</li>
+                    <li>Semua master stock</li>
+                    <li>Semua hasil scan</li>
+                </ul>
+                <p>Data user (admin) tetap aman. Setelah reset, Anda harus upload file baru.</p>
+                
+                <button class="btn btn-danger w-100 p-3" id="resetDatabaseBtn">
+                    🔥 Reset Database Sekarang
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload History -->
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">📜 Upload History</div>
+            <div class="card-body">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Cycle Name</th>
+                            <th>Upload Date</th>
+                            <th>Total Rows</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if session.get('last_upload') %}
+                        <tr>
+                            <td>{{ session.last_upload.cycle_name }}</td>
+                            <td>{{ session.last_upload.timestamp }}</td>
+                            <td>{{ session.last_upload.total_rows }}</td>
+                            <td><span class="badge bg-success">Active</span></td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">Belum ada upload</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Konfirmasi Reset -->
+<div class="modal fade" id="resetModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">⚠️ Konfirmasi Reset Database</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="fw-bold text-danger">Anda yakin ingin mereset database?</p>
+                <p>Data yang akan dihapus:</p>
+                <ul>
+                    <li>Semua cycle sessions</li>
+                    <li>Semua master stock</li>
+                    <li>Semua hasil scan</li>
+                </ul>
+                <p class="text-muted">Data user (admin) tetap aman. Tindakan ini tidak bisa dibatalkan!</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-danger" id="confirmResetBtn">🔥 Ya, Reset Database!</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('resetDatabaseBtn').addEventListener('click', function() {
+    var modal = new bootstrap.Modal(document.getElementById('resetModal'));
+    modal.show();
+});
+
+document.getElementById('confirmResetBtn').addEventListener('click', function() {
+    const btn = this;
+    btn.innerHTML = '⏳ Mereset...';
+    btn.disabled = true;
+    
+    fetch('/api/reset-database', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert('✅ Database berhasil direset!');
+            bootstrap.Modal.getInstance(document.getElementById('resetModal')).hide();
+            window.location.href = '/upload';
+        } else {
+            alert('❌ Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('❌ Error: ' + error);
+    })
+    .finally(() => {
+        btn.innerHTML = '🔥 Ya, Reset Database!';
+        btn.disabled = false;
+    });
+});
+</script>
+{% endblock %}

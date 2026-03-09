@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4">📷 Scan Barcode</h2>
+    </div>
+</div>
+
+<!-- Session Info -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3"><strong>User:</strong> {{ user }}</div>
+                    <div class="col-md-3"><strong>Cycle:</strong> {{ cycle.name }}</div>
+                    <div class="col-md-3"><strong>Total Stock:</strong> {{ cycle.total_stock }}</div>
+                    <div class="col-md-3 text-end">
+                        <button class="btn btn-success" id="startScan">▶️ Mulai Scan</button>
+                        <button class="btn btn-danger" id="endScan">⏹️ Selesai</button>
+                        <button class="btn btn-warning" id="resetCycle">🔄 Reset</button>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-3"><strong>Jam Mulai:</strong> <span id="startTime">-</span></div>
+                    <div class="col-md-3"><strong>Jam Selesai:</strong> <span id="endTime">-</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scan Input -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">Scan Barcode</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-danger">* Lokasi (wajib)</label>
+                        <input type="text" class="form-control form-control-lg" id="location" 
+                               placeholder="Scan atau ketik lokasi" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Barcode / Lot Number</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" 
+                                   id="barcodeInput" placeholder="Scan barcode..." autofocus>
+                            <button class="btn btn-primary" type="button" id="addBarcodeBtn">➕ Tambah</button>
+                        </div>
+                        <small class="text-muted">Scan barcode, klik Tambah, ulangi</small>
+                    </div>
+                </div>
+                
+                <!-- Daftar Barcode -->
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <label class="form-label">Daftar Barcode</label>
+                        <textarea class="form-control" id="barcodeList" rows="5" readonly 
+                                  placeholder="Barcode akan muncul di sini..."></textarea>
+                    </div>
+                </div>
+                
+                <!-- Tombol Proses -->
+                <div class="row mt-3">
+                    <div class="col-12 text-center">
+                        <button class="btn btn-success btn-lg" id="processScanBtn" style="width: 50%;" disabled>
+                            🚀 Proses Scan (0 barcode)
+                        </button>
+                        <button class="btn btn-outline-secondary" id="clearBarcodeBtn">🗑️ Clear</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Progress -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h6>Progress Scan</h6>
+                <div class="progress" style="height: 25px;" id="progressBar">
+                    <div class="progress-bar bg-success" style="width: 0%;" id="progressFill">0%</div>
+                </div>
+                <div class="row mt-3" id="progressStats">
+                    <div class="col-md-2"><small>Total Stock: <span id="totalStock">0</span></small></div>
+                    <div class="col-md-2"><small>Sudah Discan: <span id="scannedCount">0</span></small></div>
+                    <div class="col-md-2"><small>Sesuai: <span id="foundCount">0</span></small></div>
+                    <div class="col-md-2"><small>Lokasi Berbeda: <span id="mismatchCount">0</span></small></div>
+                    <div class="col-md-2"><small>Tidak Ditemukan: <span id="notFoundCount">0</span></small></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hasil Scan -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">📋 Hasil Scan</div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;" id="scanResults">
+                <div class="text-center text-muted py-3">Belum ada scan diproses</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let barcodes = [];
+let progressInterval;
+
+document.getElementById('barcodeInput').focus();
+
+loadProgress();
+
+function updateBarcodeList() {
+    const textarea = document.getElementById('barcodeList');
+    const processBtn = document.getElementById('processScanBtn');
+    
+    if (barcodes.length === 0) {
+        textarea.value = '';
+        processBtn.innerHTML = '🚀 Proses Scan (0 barcode)';
+        processBtn.disabled = true;
+    } else {
+        textarea.value = barcodes.join('\n');
+        processBtn.innerHTML = `🚀 Proses Scan (${barcodes.length} barcode)`;
+        processBtn.disabled = false;
+    }
+}
+
+document.getElementById('addBarcodeBtn').addEventListener('click', function() {
+    const input = document.getElementById('barcodeInput');
+    const barcode = input.value.trim();
+    
+    if (barcode) {
+        barcodes.push(barcode);
+        updateBarcodeList();
+        input.value = '';
+        input.focus();
+    }
+});
+
+document.getElementById('barcodeInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('addBarcodeBtn').click();
+    }
+});
+
+document.getElementById('clearBarcodeBtn').addEventListener('click', function() {
+    if (barcodes.length > 0 && confirm('Hapus semua barcode?')) {
+        barcodes = [];
+        updateBarcodeList();
+        document.getElementById('barcodeInput').focus();
+    }
+});
+
+document.getElementById('processScanBtn').addEventListener('click', function() {
+    const location = document.getElementById('location').value;
+    
+    if (!location) {
+        alert('Lokasi wajib diisi!');
+        document.getElementById('location').focus();
+        return;
+    }
+    
+    if (barcodes.length === 0) {
+        alert('Tidak ada barcode untuk diproses!');
+        return;
+    }
+    
+    const processBtn = document.getElementById('processScanBtn');
+    processBtn.disabled = true;
+    processBtn.innerHTML = '⏳ Memproses...';
+    
+    let processed = 0;
+    let results = [];
+    
+    function processNext() {
+        if (processed >= barcodes.length) {
+            processBtn.innerHTML = `🚀 Proses Scan (0 barcode)`;
+            barcodes = [];
+            updateBarcodeList();
+            displayResults(results);
+            loadProgress();
+            return;
+        }
+        
+        const barcode = barcodes[processed];
+        
+        fetch('/api/scan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ barcode, location })
+        })
+        .then(res => res.json())
+        .then(data => {
+            results.push(data);
+            processed++;
+            processBtn.innerHTML = `⏳ Memproses... (${processed}/${barcodes.length})`;
+            processNext();
+        })
+        .catch(error => {
+            results.push({
+                status: 'error',
+                barcode: barcode,
+                message: 'Error: ' + error
+            });
+            processed++;
+            processNext();
+        });
+    }
+    
+    processNext();
+});
+
+function displayResults(results) {
+    const container = document.getElementById('scanResults');
+    let html = '<div class="list-group">';
+    
+    results.forEach(result => {
+        if (result.status === 'found_match') {
+            html += `
+                <div class="list-group-item list-group-item-success">
+                    <strong>✅ ${result.barcode}</strong><br>
+                    <small>Product: ${result.product} | Location: ${result.location} | Qty: ${result.qty}</small>
+                </div>
+            `;
+        }
+        else if (result.status === 'found_mismatch') {
+            html += `
+                <div class="list-group-item list-group-item-warning">
+                    <strong>⚠️ ${result.barcode}</strong><br>
+                    <small>Product: ${result.product} | Discan: ${result.location_scan} | Seharusnya: ${result.location_system} | Qty: ${result.qty}</small>
+                </div>
+            `;
+        }
+        else if (result.status === 'not_found') {
+            html += `
+                <div class="list-group-item list-group-item-danger">
+                    <strong>❌ ${result.barcode}</strong><br>
+                    <small>Tidak ditemukan di database</small>
+                </div>
+            `;
+        }
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function loadProgress() {
+    fetch('/api/scan-progress')
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById('totalStock').textContent = data.total;
+        document.getElementById('scannedCount').textContent = data.scanned;
+        document.getElementById('foundCount').textContent = data.found;
+        document.getElementById('mismatchCount').textContent = data.mismatch;
+        document.getElementById('notFoundCount').textContent = data.not_found;
+        
+        if (data.total > 0) {
+            const pct = Math.round((data.scanned / data.total) * 100);
+            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('progressFill').textContent = pct + '%';
+        }
+    });
+}
+
+document.getElementById('startScan').addEventListener('click', function() {
+    fetch('/api/start-scan', { method: 'POST' })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            document.getElementById('startTime').textContent = data.time;
+            progressInterval = setInterval(loadProgress, 5000);
+            alert('Scan dimulai!');
+        }
+    });
+});
+
+document.getElementById('endScan').addEventListener('click', function() {
+    if (confirm('Akhiri sesi scan?')) {
+        fetch('/api/end-scan', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                document.getElementById('endTime').textContent = data.time;
+                clearInterval(progressInterval);
+                alert(`Scan selesai pada ${data.time}`);
+                setTimeout(() => window.location.href = '/report', 2000);
+            }
+        });
+    }
+});
+
+document.getElementById('resetCycle').addEventListener('click', function() {
+    if (confirm('Reset akan menghapus semua data scan. Lanjutkan?')) {
+        fetch('/api/reset-cycle', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                document.getElementById('startTime').textContent = '-';
+                document.getElementById('endTime').textContent = '-';
+                barcodes = [];
+                updateBarcodeList();
+                document.getElementById('scanResults').innerHTML = '<div class="text-center text-muted py-3">Belum ada scan diproses</div>';
+                loadProgress();
+                alert('Cycle telah direset');
+            }
+        });
+    }
+});
+
+updateBarcodeList();
+loadProgress();
+</script>
+{% endblock %}

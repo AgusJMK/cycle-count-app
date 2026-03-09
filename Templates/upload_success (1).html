@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-success text-white">✅ Upload Berhasil!</div>
+            <div class="card-body text-center py-5">
+                <h3 class="mb-4">File Excel berhasil diupload</h3>
+                <div class="row mb-4">
+                    <div class="col-md-6 offset-md-3">
+                        <table class="table table-bordered">
+                            <tr><th>Cycle Name</th><td>{{ name }}</td></tr>
+                            <tr><th>Total Rows</th><td>{{ rows }} baris</td></tr>
+                            <tr><th>Upload Time</th><td>{{ now.strftime('%Y-%m-%d %H:%M:%S') }}</td></tr>
+                        </table>
+                    </div>
+                </div>
+                <a href="/scan" class="btn btn-primary btn-lg me-2">📷 Mulai Scan</a>
+                <a href="/upload" class="btn btn-outline-secondary btn-lg">📤 Upload Lagi</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
